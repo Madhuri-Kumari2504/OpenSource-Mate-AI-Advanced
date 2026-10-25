@@ -40,7 +40,19 @@ type RepositoryToolResponse = {
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL as string | undefined
-)?.replace(/\/+$/, "") || "http://localhost:8000";
+)
+  ?.trim()
+  .replace(/\/+$/, "");
+
+function getApiBaseUrl(): string {
+  if (!API_BASE_URL) {
+    throw new Error(
+      "Backend URL is not configured. Set VITE_API_BASE_URL in Vercel and redeploy."
+    );
+  }
+
+  return API_BASE_URL;
+}
 
 function App() {
   const [activePage, setActivePage] = useState<Page>("dashboard");
@@ -148,9 +160,7 @@ function App() {
       const data: unknown = await response.json();
 
       if (!Array.isArray(data)) {
-        throw new Error(
-          "GitHub returned an unexpected response."
-        );
+        throw new Error("GitHub returned an unexpected response.");
       }
 
       const actualIssues: Issue[] = data
@@ -233,10 +243,11 @@ function App() {
           : "contribution-guide";
 
       const response = await fetch(
-        `${API_BASE_URL}/api/skills/${endpoint}`,
+        `${getApiBaseUrl()}/api/skills/${endpoint}`,
         {
           method: "POST",
           headers: {
+            Accept: "application/json",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -255,10 +266,9 @@ function App() {
         );
       }
 
-      if (!response.ok || !data.success) {
+      if (!response.ok || data.success === false) {
         throw new Error(
-          data.error ||
-            `Request failed (${response.status}).`
+          data.error || `Request failed (${response.status}).`
         );
       }
 
@@ -288,10 +298,11 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/ai/plan`,
+        `${getApiBaseUrl()}/api/ai/plan`,
         {
           method: "POST",
           headers: {
+            Accept: "application/json",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -312,7 +323,7 @@ function App() {
         );
       }
 
-      if (!response.ok || !data.success || !data.plan) {
+      if (!response.ok || data.success === false || !data.plan) {
         throw new Error(
           data.error ||
             `AI request failed (${response.status}). Check the backend and AI configuration.`
@@ -1224,9 +1235,7 @@ function App() {
                       void navigator.clipboard
                         .writeText(guideResult.guide || "")
                         .then(() =>
-                          setMessage(
-                            "Contribution guide copied."
-                          )
+                          setMessage("Contribution guide copied.")
                         )
                         .catch(() =>
                           setToolError(
