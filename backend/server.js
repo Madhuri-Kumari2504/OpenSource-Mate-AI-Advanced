@@ -18,7 +18,15 @@ const GITHUB_CACHE_TTL_MS = Math.max(0, Number(process.env.GITHUB_CACHE_TTL_MS) 
 const GITHUB_CACHE_MAX_ENTRIES = 100;
 const githubGetCache = new Map();
 
-app.use(cors({ origin: ["http://localhost:5173", "http://localhost:5174"] }));
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://open-source-mate-ai-advanced.vercel.app"
+];
+
+app.use(cors({
+  origin: allowedOrigins
+}));
 app.use(express.json({ limit: "1mb" }));
 
 // -------------------- Basic routes --------------------
