@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import "./App.css";
 
@@ -33,6 +32,10 @@ function App() {
   const [selectedIssueNumber, setSelectedIssueNumber] = useState("");
   const [prTitle, setPrTitle] = useState("");
   const [prDescription, setPrDescription] = useState("");
+
+  const API_BASE_URL =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
+    "http://localhost:8000";
 
   const beginnerIssues = issues.filter((issue) =>
     issue.labels.some((label) =>
@@ -100,9 +103,7 @@ function App() {
       }
 
       const actualIssues: Issue[] = data
-        .filter(
-          (item: { pull_request?: unknown }) => !item.pull_request
-        )
+        .filter((item: { pull_request?: unknown }) => !item.pull_request)
         .map(
           (item: {
             title: string;
@@ -139,12 +140,13 @@ function App() {
   async function generatePlan(issue: Issue) {
     setActivePage("planner");
     setPlanIssueNumber(issue.number);
+    setSelectedIssueNumber(String(issue.number));
     setPlanLoading(true);
     setContributionPlan("");
     setPlanError("");
 
     try {
-      const response = await fetch("http://localhost:8000/api/ai/plan", {
+      const response = await fetch(`${API_BASE_URL}/api/ai/plan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -162,14 +164,14 @@ function App() {
         data = (await response.json()) as PlanResponse;
       } catch {
         throw new Error(
-          "The backend returned an invalid response. Check your Express server."
+          "The backend returned an invalid response. Check the deployed backend logs."
         );
       }
 
       if (!response.ok || !data.success || !data.plan) {
         throw new Error(
           data.error ||
-            `AI request failed (${response.status}). Check Ollama and the backend.`
+            `AI request failed (${response.status}). Check the backend API and AI service configuration.`
         );
       }
 
@@ -177,8 +179,8 @@ function App() {
     } catch (error) {
       setPlanError(
         error instanceof Error
-          ? error.message
-          : "Could not connect to the AI backend."
+          ? `${error.message} API: ${API_BASE_URL}`
+          : `Could not connect to the AI backend at ${API_BASE_URL}.`
       );
     } finally {
       setPlanLoading(false);
@@ -545,11 +547,11 @@ function App() {
         {activePage === "planner" && (
           <>
             <section className="welcome">
-              <p className="eyebrow">LOCAL MODEL · OLLAMA</p>
+              <p className="eyebrow">BACKEND AI SERVICE</p>
               <h1>AI Contribution Planner</h1>
               <p className="subtitle">
-                Choose a loaded GitHub issue and ask your local model to break
-                it into beginner-friendly steps.
+                Choose a loaded GitHub issue and ask the configured AI service
+                to break it into beginner-friendly steps.
               </p>
             </section>
 
@@ -566,7 +568,10 @@ function App() {
                   <label htmlFor="plannerIssue">GitHub issue</label>
                   <select
                     id="plannerIssue"
-                    value={selectedIssueNumber || (planIssueNumber ? String(planIssueNumber) : "")}
+                    value={
+                      selectedIssueNumber ||
+                      (planIssueNumber ? String(planIssueNumber) : "")
+                    }
                     onChange={(event) => {
                       const value = event.target.value;
                       setSelectedIssueNumber(value);
@@ -587,7 +592,8 @@ function App() {
                     type="button"
                     disabled={
                       planLoading ||
-                      !(selectedIssue || issues.find((i) => i.number === planIssueNumber))
+                      !(selectedIssue ||
+                        issues.find((i) => i.number === planIssueNumber))
                     }
                     onClick={() => {
                       const issue =
@@ -618,7 +624,7 @@ function App() {
                 <h2>AI Contribution Plan</h2>
                 {planLoading && (
                   <p role="status">
-                    Local AI is analyzing this issue. Please wait...
+                    AI is analyzing this issue. Please wait...
                   </p>
                 )}
                 {!planLoading && planError && (
@@ -711,6 +717,7 @@ function App() {
                 This creates a local draft only. It does not publish a pull
                 request or push code to GitHub.
               </p>
+              {message && <p role="status">{message}</p>}
             </section>
           </>
         )}
